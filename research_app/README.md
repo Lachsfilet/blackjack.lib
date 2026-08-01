@@ -1,0 +1,100 @@
+# blackjack-research-app
+
+Standalone blackjack research project that imports `blackjack_engine` from `blackjack.lib`.
+
+## Architecture (text diagram)
+
+```
+CLI
+ ├─ compute-action
+ ├─ simulate
+ └─ benchmark
+      ↓
+Simulation harness
+ ├─ BlackjackAdapter (wraps blackjack_engine.GameEngine)
+ ├─ Agent policies (perfect/basic/hilo/omega2/random)
+ └─ Metrics + comparison table
+      ↓
+PerfectEVSolver
+ ├─ composition-dependent EV recursion (hit/stand/double/surrender)
+ ├─ split approximation with memoized subtrees
+ └─ per-action EV breakdown
+```
+
+## Project setup
+
+```bash
+cd /home/runner/work/blackjack.lib/blackjack.lib
+pip install -e .
+pip install -e ./research_app
+```
+
+Run tests:
+
+```bash
+pytest -q /home/runner/work/blackjack.lib/blackjack.lib/research_app/tests
+```
+
+## Adapter API
+
+`BlackjackAdapter` exposes:
+
+- `reset(seed=...)`
+- `start_hand(bet_units=...)`
+- `step(action)`
+- `legal_actions(state)`
+- `is_terminal(state)`
+- `payout(state)`
+- `get_state(visible_only=False)`
+
+How adapter uses `blackjack.lib`:
+
+- delegates dealing/transitions/settlement to `blackjack_engine.GameEngine`
+- maps engine internals into a serializable `GameState`
+- exposes visible state and internal state (`dealer_hole_card`, shoe composition) for solver mode
+
+## Rule presets
+
+- `casino_typical`: 6D, S17, DAS, late surrender, no RSA, 3:2 BJ, 25% penetration
+- `optimal_play_conditions`: 1D, S17, DAS, late surrender, RSA, 3:2 BJ, 20% penetration
+- `counter_friendly_shoe`: 2D, S17, DAS, late surrender, RSA, 3:2 BJ, 10% penetration
+
+## Perfect play computation
+
+- Recursively evaluates legal actions with composition-dependent card probabilities.
+- Uses memoization keyed by hand/dealer/shoe/action-rights state.
+- Computes EV breakdown for each legal action and chooses argmax EV.
+- Split EV is approximated by evaluating both split hands after initial split draws using shared reduced composition.
+
+## CLI
+
+Compute action for a serialized state:
+
+```bash
+blackjack-research compute-action --preset casino_typical --state '{"player_hands": [...], "active_hand_index": 0, ...}'
+```
+
+Run two agents:
+
+```bash
+blackjack-research simulate --preset casino_typical --agent-a perfect --agent-b basic --hands 1000000 --seed 123
+```
+
+Benchmark table:
+
+```bash
+blackjack-research benchmark --preset optimal_play_conditions --hands 1000000 --seed 123
+```
+
+Reproducible quick benchmark:
+
+```bash
+blackjack-research benchmark --preset optimal_play_conditions --hands 20000 --seed 123
+```
+
+## Assumptions and limitations
+
+- Perfect solver uses full internal state (dealer hole card + shoe composition).
+- Split EV uses a documented approximation (not full joint split-tree exact DP).
+- No side bets beyond insurance.
+- Default CLI hands is 1,000,000 and can take significant runtime.

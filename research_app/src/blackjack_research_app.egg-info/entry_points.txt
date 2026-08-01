@@ -1,0 +1,2 @@
+[console_scripts]
+blackjack-research = blackjack_research.cli:main
