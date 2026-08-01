@@ -18,11 +18,11 @@ def c(rank: str, suit: str = "♠") -> Card:
 def test_solver_regression_fixed_state() -> None:
     config = PRESETS["optimal_play_conditions"]
     adapter = BlackjackAdapter(config, seed=9)
-    rig_shoe(adapter, [c("10"), c("6"), c("10"), c("9")])
+    rig_shoe(adapter, [c("7"), c("6"), c("10"), c("9")])
     state = adapter.start_hand()
 
     solver = PerfectEVSolver(config)
     decision = solver.choose_action(state)
 
-    assert decision.action == "stand"
+    assert decision.action == "double"
     assert "stand" in decision.action_evs

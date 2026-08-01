@@ -18,6 +18,7 @@ class RuleConfig:
     insurance: bool = True
     min_bet_units: int = 1
     max_bet_units: int = 20
+    max_resplits: int = 3
 
     def to_engine_rules(self) -> Rules:
         surrender = {
@@ -37,6 +38,7 @@ class RuleConfig:
             allow_insurance=self.insurance,
             base_bet_units=self.min_bet_units,
             max_bet_units=self.max_bet_units,
+            max_resplits=self.max_resplits,
         )
 
 
@@ -52,6 +54,7 @@ PRESETS: dict[str, RuleConfig] = {
         insurance=True,
         min_bet_units=1,
         max_bet_units=20,
+        max_resplits=3,
     ),
     "optimal_play_conditions": RuleConfig(
         decks=1,
@@ -64,6 +67,7 @@ PRESETS: dict[str, RuleConfig] = {
         insurance=True,
         min_bet_units=1,
         max_bet_units=10,
+        max_resplits=3,
     ),
     "counter_friendly_shoe": RuleConfig(
         decks=2,
@@ -76,5 +80,6 @@ PRESETS: dict[str, RuleConfig] = {
         insurance=True,
         min_bet_units=1,
         max_bet_units=40,
+        max_resplits=4,
     ),
 }

@@ -29,17 +29,17 @@ class BlackjackAdapter:
             self.seed = seed
         self.engine = GameEngine(rules=self.config.to_engine_rules(), seed=self.seed)
         self._last_settlements = None
-        return self.start_hand()
+        return self.get_state()
 
     def start_hand(self, bet_units: int | None = None) -> GameState:
         self._last_settlements = None
         self.engine.deal_initial_hand(bet_amount=bet_units)
+        self._auto_resolve_if_needed()
         return self.get_state()
 
     def step(self, action: str, params: dict[str, Any] | None = None) -> StepResult:
         self.engine.play_player_action(0, PlayerAction(action), optional_params=params)
-        if self.engine.active_hand is None:
-            self._last_settlements = self.engine.resolve_dealer_and_settle()
+        self._auto_resolve_if_needed()
         state = self.get_state()
         return StepResult(state=state, terminal=state.terminal, payout_units=state.payout_units)
 
@@ -75,7 +75,7 @@ class BlackjackAdapter:
 
         composition = shoe_composition_from_cards(str(c) for c in self.engine.shoe._cards)
         payout_units: float | None = None
-        terminal = self.engine.active_hand is None and self._last_settlements is not None
+        terminal = self._last_settlements is not None
         if terminal:
             payout_units = sum(row["net_profit_cents"] for row in self._last_settlements) / 100.0
 
@@ -101,6 +101,14 @@ class BlackjackAdapter:
         if self._last_settlements is None:
             return []
         return self._last_settlements
+
+    def _auto_resolve_if_needed(self) -> None:
+        if self._last_settlements is not None:
+            return
+        dealer_blackjack = bool(getattr(self.engine, "_dealer_has_blackjack"))
+        all_done = bool(self.engine.player_hands) and all(hand.is_completed for hand in self.engine.player_hands)
+        if dealer_blackjack or self.engine.active_hand is None or all_done:
+            self._last_settlements = self.engine.resolve_dealer_and_settle()
 
     @staticmethod
     def _hand_state(hand: Any) -> HandState:

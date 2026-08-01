@@ -1,0 +1,146 @@
+Metadata-Version: 2.4
+Name: blackjack-engine
+Version: 0.1.0
+Summary: Casino-style blackjack engine for simulations
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Provides-Extra: dev
+Requires-Dist: pytest>=7; extra == "dev"
+
+# blackjack.lib
+
+A standalone, casino-style Blackjack engine for simulations.
+
+## Features
+
+- Realistic multi-deck shoe (1-8 decks, default 6)
+- Cut-card penetration reshuffle (default: 25% cards remaining)
+- Configurable rules: S17/H17, peek/no-peek, DAS, resplit limits, surrender, insurance
+- Integer-cents money math for reliable settlements
+- Programmatic control over every player action (hit/stand/double/split/surrender/insurance)
+- Per-hand settlement output with split-hand details
+- Event logging hook and CSV export helper
+- Optional CLI for deterministic debugging runs
+
+## Installation
+
+```bash
+pip install -e .
+```
+
+## Quickstart
+
+```python
+from blackjack_engine import GameEngine, PlayerAction, Rules
+
+rules = Rules(decks=6, penetration_fraction=0.25)
+engine = GameEngine(rules=rules, seed=123)
+
+player_hand, dealer_upcard = engine.deal_initial_hand(bet_amount=1)  # 1 table unit
+
+while engine.active_hand:
+    if engine.active_hand.total >= 17:
+        engine.play_player_action(0, PlayerAction.STAND)
+    else:
+        engine.play_player_action(0, PlayerAction.HIT)
+
+settlements = engine.resolve_dealer_and_settle()
+print(settlements)
+```
+
+## Public API
+
+```python
+from blackjack_engine import Rules, Shoe, Card, Hand, PlayerAction, GameEngine
+```
+
+`GameEngine` methods:
+
+- `deal_initial_hand(bet_amount=None) -> (player_hand, dealer_upcard)`
+- `play_player_action(player_id, action, optional_params=None)`
+- `resolve_dealer_and_settle() -> list[dict]`
+- `reset_shoe()`
+- `shuffle(seed=None)`
+- `remaining_cards() -> int`
+- `set_rules(rules)`
+- `play_full_hand_using_strategy(strategy_callback, bet_amount=None)`
+
+## Settlement payload
+
+Each resolved hand includes:
+
+- `bet_cents`
+- `outcome` (`win`, `lose`, `push`, `surrender`, `blackjack`)
+- `net_profit_cents`
+- `player_cards`, `dealer_final_cards`
+- `actions`
+- `insurance_bet_cents`
+- `shoe_id`, `hand_index`, `seed`, `shoe_remaining_cards_before_hand`
+
+## Logging hook
+
+Pass `logger=callable` when creating `GameEngine`. It receives one dictionary per resolved hand with:
+
+- `shoe_id`, `hand_index`, `seed`, `player_position`
+- `player_hands`, `dealer_upcard`, `dealer_final_cards`
+- action history per hand
+- settlements
+- `shoe_remaining_cards_before_hand`
+
+## CSV helper
+
+```python
+from blackjack_engine import append_hand_results_csv
+
+append_hand_results_csv("./out/hands.csv", settlements)
+```
+
+CSV columns:
+
+- `shoe_id, hand_index, seed, player_position, hand_position`
+- `player_cards, dealer_upcard, dealer_final_cards, actions`
+- `bet_cents, insurance_bet_cents, outcome, net_profit_cents`
+- `shoe_remaining_cards_before_hand`
+
+## External simulation loop example
+
+See `/home/runner/work/blackjack.lib/blackjack.lib/examples/example_external_sim.py`.
+
+That pattern keeps betting, strategy, and optional card-counting logic in your own simulation code while using this library only for rule-correct hand framing and settlement.
+
+## CLI
+
+Run deterministic debug hands:
+
+```bash
+python cli.py --decks 6 --penetration 0.25 --hands 50 --seed 42 --csv-output ./hands.csv
+```
+
+Optional rule overrides from JSON or YAML:
+
+```bash
+python cli.py --rules-config ./rules.json
+```
+
+## Deterministic example run
+
+```bash
+python cli.py --hands 5 --seed 7
+```
+
+Example output:
+
+```text
+Hands: 5
+Total profit: -2.00
+```
+
+## Testing
+
+```bash
+pytest -q
+```
+
+## Parallel simulation guidance
+
+The engine is designed for single-threaded use per instance. For parallel simulations, run independent `GameEngine` instances per process/thread and keep RNG seeds isolated per worker.

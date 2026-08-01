@@ -102,7 +102,7 @@ class PerfectEVSolver:
             evs["double"] = self._double_ev(hand, dealer, shoe, split_hand)
         if can_surrender and len(hand) == 2:
             evs["surrender"] = -0.5
-        if can_split and len(hand) == 2 and hand[0] == hand[1] and split_depth < self.config.max_bet_units:
+        if can_split and len(hand) == 2 and hand[0] == hand[1] and split_depth < self.config.max_resplits:
             evs["split"] = self._split_ev(hand, dealer, shoe, split_depth)
         return evs
 

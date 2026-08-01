@@ -16,7 +16,6 @@ def c(rank: str, suit: str = "♠") -> Card:
 
 def test_legal_actions_include_split_and_surrender() -> None:
     adapter = BlackjackAdapter(PRESETS["casino_typical"], seed=10)
-    adapter.start_hand()
     rig_shoe(adapter, [c("8"), c("6"), c("8"), c("9")])
     state = adapter.start_hand()
     assert "split" in state.legal_actions
